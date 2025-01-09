@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N-Chat with Emojis</title>
+    <script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.2/dist/emoji-button.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 50px;
+        }
+        #members-count {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        #messages {
+            border: 1px solid black;
+            padding: 10px;
+            width: 300px;
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+        .message {
+            margin: 5px;
+            padding: 8px 12px;
+            border-radius: 15px;
+            max-width: 80%;
+        }
+        .client-message {
+            background-color: #d4edda;
+            color: #155724;
+            text-align: right;
+            align-self: flex-end;
+        }
+        .server-message {
+            background-color: #cce5ff;
+            color: #004085;
+            text-align: left;
+            align-self: flex-start;
+        }
+        .message-container {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 5px;
+        }
+    </style>
+    <script>
+        let socket = new WebSocket("ws://localhost:8080");
+        let clientName = null;
+
+        // Prompt for the client's name
+        window.onload = function () {
+            clientName = prompt("Enter your name:");
+            if (clientName) {
+                socket.send(JSON.stringify({ type: "setName", name: clientName }));
+            }
+        };
+
+        // Handle messages from the server
+        socket.onmessage = function (event) {
+            const data = JSON.parse(event.data);
+
+            if (data.type === "updateMembers") {
+                // Update online members count
+                document.getElementById("members-count").textContent = `Online Members: ${data.count}`;
+            } else {
+                // Display messages
+                displayMessage(data.text, data.sender || "Server");
+            }
+        };
+
+        // Function to display messages
+        function displayMessage(message, sender) {
+            const messageContainer = document.getElementById("messages");
+            const messageElement = document.createElement("div");
+            messageElement.classList.add("message");
+
+            if (sender === clientName) {
+                messageElement.classList.add("client-message");
+            } else {
+                messageElement.classList.add("server-message");
+            }
+
+            messageElement.textContent = `${sender}: ${message}`;
+            const messageWrapper = document.createElement("div");
+            messageWrapper.classList.add("message-container");
+            messageWrapper.appendChild(messageElement);
+
+            messageContainer.appendChild(messageWrapper);
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        }
+
+        // Send a message to the server
+        function sendMessage() {
+            const messageInput = document.getElementById("messageInput");
+            const message = messageInput.value;
+
+            if (message.trim()) {
+                socket.send(JSON.stringify({ type: "message", text: message }));
+                messageInput.value = "";
+            }
+        }
+
+        // Emoji Picker Integration
+        const picker = new EmojiButton({
+            position: "top-start", // Position the emoji picker
+        });
+        const emojiButton = document.getElementById("emojiButton");
+
+        emojiButton.addEventListener("click", () => {
+            picker.togglePicker(emojiButton);
+        });
+
+        picker.on("emoji", (emoji) => {
+            document.getElementById("messageInput").value += emoji;
+        });
+    </script>
+</head>
+<body>
+    <h1>N-Chat with Emojis</h1>
+    <div id="members-count">Online Members: 0</div>
+    <div id="messages"></div>
+    <input type="text" id="messageInput" placeholder="Enter your message" />
+    <button id="emojiButton">😊</button>
+    <button onclick="sendMessage()">Send</button>
+</body>
+</html>
